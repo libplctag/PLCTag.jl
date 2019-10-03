@@ -1,6 +1,12 @@
 # PLCTag.jl
 Wraps https://github.com/kyle-github/libplctag
 
+# Install
+
+You must have build-essentials and cmake installed.
+
+In Pkg mode, `add https://github.com/laurium-labs/PLCTag.jl`
+
 # Usage
 
 ```julia
