@@ -5,14 +5,14 @@ const FIELDS          = 5
 const INSTANCES       = 10
 const ITERATIONS      = 100
 const DATA_TIMEOUT    = 5000
-const INDIVIDUAL_TAGS = ["protocol=ab_eip&gateway=192.168.1.1&path=1,0&cpu=compactlogix&elem_size=4&elem_count=1&name=field_${f-1}_${i-1}&debug=1" for f in 1:FIELDS, i in 1:INSTANCES]
-const ARRAYED_TAGS    = ["protocol=ab_eip&gateway=192.168.1.1&path=1,0&cpu=compactlogix&elem_size=4&elem_count=${INSTANCES}&name=field_${f-1}&debug=1" for f in 1:FIELDS]
+const INDIVIDUAL_TAGS = vcat([string("protocol=ab_eip&gateway=192.168.1.1&path=1,0&cpu=compactlogix&elem_size=4&elem_count=1&name=field_", string(f-1), "_", string(i-1), string("&debug=1")) for f in 1:FIELDS, i in 1:INSTANCES]...)
+const ARRAYED_TAGS    = vcat([string("protocol=ab_eip&gateway=192.168.1.1&path=1,0&cpu=compactlogix&elem_size=4&elem_count=", string(INSTANCES), "&name=field_", string(f-1), "&debug=1") for f in 1:FIELDS]...)
 
 
 function create(paths::Vector{String})
 	tags = Int32[]
 	for path in paths
-		tag = PLCTag.C.plc_tag_create(TAG_PATH, DATA_TIMEOUT)
+		tag = PLCTag.C.plc_tag_create(path, 5000)
 		tag <= 0 && error("ERROR $(PLCTag.C.plc_tag_decode_error(tag)): Could not create tag!")
 		code = PLCTag.C.plc_tag_status(tag)
 		code == PLCTag.C.PLCTAG_STATUS_OK || error("ERROR: Error setting up tag internal state. Got error code $(code): $(unsafe_string(PLCTag.C.plc_tag_decode_error(code)))")
@@ -37,7 +37,7 @@ function readIndividualTagsSync(tags::Vector{Int32})
 	end
 	
 	for tag in tags
-		val = PLCTag.C.plc_get_int32(tag, 0)
+		val = PLCTag.C.plc_tag_get_int32(tag, 0)
 	end
 end
 
@@ -54,7 +54,7 @@ function readIndividualTagsAsync(tags::Vector{Int32})
 		end
 		PLCTag.C.plc_tag_status(tag) == PLCTag.C.PLCTAG_STATUS_OK || error("Failed to read tag")
 		
-		val = PLCTag.C.plc_get_int32(tag, 0)
+		val = PLCTag.C.plc_tag_get_int32(tag, 0)
 	end
 end
 
@@ -67,7 +67,7 @@ function readArrayedTagsSync(tags::Vector{Int32})
 	
 	for tag in tags
 		for instance in 1:INSTANCES
-			val = PLCTag.C.plc_get_int32(tag, instance-1)
+			val = PLCTag.C.plc_tag_get_int32(tag, instance-1)
 		end
 	end
 end
@@ -86,7 +86,7 @@ function readArrayedTagsAsync(tags::Vector{Int32})
 		PLCTag.C.plc_tag_status(tag) == PLCTag.C.PLCTAG_STATUS_OK || error("Failed to read tag")
 		
 		for instance in 1:INSTANCES
-			val = PLCTag.C.plc_get_int32(tag, instance-1)
+			val = PLCTag.C.plc_tag_get_int32(tag, instance-1)
 		end
 	end
 end
