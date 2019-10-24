@@ -93,7 +93,7 @@ module PLCTag
 		:Float32, :Float64,
 	)
 		if T === Bool
-			# TODO: determine what "bool" size is on a PLC
+			# NOTE: using Int8 (aka SINT on the PLC) to store a Bool
 			plcget(::Type{Bool}, tag::Int32, ind::Int)            = plcget(Int8, tag, ind) != 0
 			plcset(::Type{Bool}, tag::Int32, ind::Int, val::Bool) = plcset(Int8, tag, ind, convert(Int8, val))
 		else
@@ -125,8 +125,8 @@ module PLCTag
 		writeTags::Dict{String, PLCRef}
 		
 		function PLCBinding(plc::PLC, prefix::String, ::Type{ArgT}, ::Type{RetT}) where {ArgT, RetT}
-			rFlag = PLCRef{Bool}(plc, "$(prefix).__read__")
-			wFlag = PLCRef{Bool}(plc, "$(prefix).__write__")
+			rFlag = PLCRef{Bool}(plc, "$(prefix).done")
+			wFlag = PLCRef{Bool}(plc, "$(prefix).run")
 			
 			rTags = _bindTags(RetT, plc, prefix)
 			wTags = _bindTags(ArgT, plc, prefix)
