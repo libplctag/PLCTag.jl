@@ -135,6 +135,10 @@ module PLCTag
 		end
 	end
 	
+	function (binding::PLCBinding{ArgT, RetT})(args...; kwargs...)::RetT where {ArgT, RetT}
+		return binding(ArgT(args...; kwargs...))
+	end
+	
 	function (binding::PLCBinding{ArgT, RetT})(arg::ArgT)::RetT where {ArgT, RetT}
 		# wait for write flag to be cleared
 		timedwait(() -> !binding.writeFlag[], 60.0, pollint = 0.01) === :ok || error("Timed out waiting for write flag to be cleared")
