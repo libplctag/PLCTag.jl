@@ -1,81 +1,117 @@
 module PLCTag
-	module C
-		using CBinding
+	include("c.jl")
+	
+	export PLC, PLCRef, PLCBinding
+	
+	
+	Base.@kwdef struct PLC
+		cpu::String
+		protocol::String
+		gateway::String
+		path::String
+		debug::Int = 5  # TODO: for production, this should probably be 0 or 1
+	end
+	
+	
+	struct PLCRef{T}
+		tag::Ref{Int32}
+		count::Int
 		
-		const PLCTAG_STATUS_PENDING       = 1
-		const PLCTAG_STATUS_OK            = 0
-		const PLCTAG_ERR_ABORT            = -1
-		const PLCTAG_ERR_BAD_CONFIG       = -2
-		const PLCTAG_ERR_BAD_CONNECTION   = -3
-		const PLCTAG_ERR_BAD_DATA         = -4
-		const PLCTAG_ERR_BAD_DEVICE       = -5
-		const PLCTAG_ERR_BAD_GATEWAY      = -6
-		const PLCTAG_ERR_BAD_PARAM        = -7
-		const PLCTAG_ERR_BAD_REPLY        = -8
-		const PLCTAG_ERR_BAD_STATUS       = -9
-		const PLCTAG_ERR_CLOSE            = -10
-		const PLCTAG_ERR_CREATE           = -11
-		const PLCTAG_ERR_DUPLICATE        = -12
-		const PLCTAG_ERR_ENCODE           = -13
-		const PLCTAG_ERR_MUTEX_DESTROY    = -14
-		const PLCTAG_ERR_MUTEX_INIT       = -15
-		const PLCTAG_ERR_MUTEX_LOCK       = -16
-		const PLCTAG_ERR_MUTEX_UNLOCK     = -17
-		const PLCTAG_ERR_NOT_ALLOWED      = -18
-		const PLCTAG_ERR_NOT_FOUND        = -19
-		const PLCTAG_ERR_NOT_IMPLEMENTED  = -20
-		const PLCTAG_ERR_NO_DATA          = -21
-		const PLCTAG_ERR_NO_MATCH         = -22
-		const PLCTAG_ERR_NO_MEM           = -23
-		const PLCTAG_ERR_NO_RESOURCES     = -24
-		const PLCTAG_ERR_NULL_PTR         = -25
-		const PLCTAG_ERR_OPEN             = -26
-		const PLCTAG_ERR_OUT_OF_BOUNDS    = -27
-		const PLCTAG_ERR_READ             = -28
-		const PLCTAG_ERR_REMOTE_ERR       = -29
-		const PLCTAG_ERR_THREAD_CREATE    = -30
-		const PLCTAG_ERR_THREAD_JOIN      = -31
-		const PLCTAG_ERR_TIMEOUT          = -32
-		const PLCTAG_ERR_TOO_LARGE        = -33
-		const PLCTAG_ERR_TOO_SMALL        = -34
-		const PLCTAG_ERR_UNSUPPORTED      = -35
-		const PLCTAG_ERR_WINSOCK          = -36
-		const PLCTAG_ERR_WRITE            = -37
-		const PLCTAG_ERR_PARTIAL          = -38
-		
-		function __init__()
-			library = Clibrary(joinpath(dirname(@__DIR__), "deps/usr/lib/libplctag.so"))
+		function PLCRef{T}(plc::PLC, tagName::String, count::Int = 1) where {T}
+			isprimitivetype(T) || error("Unable to create a PLCRef for anything other than primitive types")
 			
-			global plc_tag_decode_error = Cfunction{Cstring, Tuple{Cint}}(library, :plc_tag_decode_error)
-			global plc_tag_create = Cfunction{Int32, Tuple{Cstring, Cint}}(library, :plc_tag_create)
-			global plc_tag_lock = Cfunction{Cint, Tuple{Int32}}(library, :plc_tag_lock)
-			global plc_tag_unlock = Cfunction{Cint, Tuple{Int32}}(library, :plc_tag_unlock)
-			global plc_tag_abort = Cfunction{Cint, Tuple{Int32}}(library, :plc_tag_abort)
-			global plc_tag_destroy = Cfunction{Cint, Tuple{Int32}}(library, :plc_tag_destroy)
-			global plc_tag_read = Cfunction{Cint, Tuple{Int32, Cint}}(library, :plc_tag_read)
-			global plc_tag_status = Cfunction{Cint, Tuple{Int32}}(library, :plc_tag_status)
-			global plc_tag_write = Cfunction{Cint, Tuple{Int32, Cint}}(library, :plc_tag_write)
-			global plc_tag_get_size = Cfunction{Cint, Tuple{Int32}}(library, :plc_tag_get_size)
-			global plc_tag_get_uint64 = Cfunction{UInt64, Tuple{Int32, Cint}}(library, :plc_tag_get_uint64)
-			global plc_tag_set_uint64 = Cfunction{Cint, Tuple{Int32, Cint, UInt64}}(library, :plc_tag_set_uint64)
-			global plc_tag_get_int64 = Cfunction{Int64, Tuple{Int32, Cint}}(library, :plc_tag_get_int64)
-			global plc_tag_set_int64 = Cfunction{Cint, Tuple{Int32, Cint, Int64}}(library, :plc_tag_set_int64)
-			global plc_tag_get_uint32 = Cfunction{UInt32, Tuple{Int32, Cint}}(library, :plc_tag_get_uint32)
-			global plc_tag_set_uint32 = Cfunction{Cint, Tuple{Int32, Cint, UInt32}}(library, :plc_tag_set_uint32)
-			global plc_tag_get_int32 = Cfunction{Int32, Tuple{Int32, Cint}}(library, :plc_tag_get_int32)
-			global plc_tag_set_int32 = Cfunction{Cint, Tuple{Int32, Cint, Int32}}(library, :plc_tag_set_int32)
-			global plc_tag_get_uint16 = Cfunction{UInt16, Tuple{Int32, Cint}}(library, :plc_tag_get_uint16)
-			global plc_tag_set_uint16 = Cfunction{Cint, Tuple{Int32, Cint, UInt16}}(library, :plc_tag_set_uint16)
-			global plc_tag_get_int16 = Cfunction{Int16, Tuple{Int32, Cint}}(library, :plc_tag_get_int16)
-			global plc_tag_set_int16 = Cfunction{Cint, Tuple{Int32, Cint, Int16}}(library, :plc_tag_set_int16)
-			global plc_tag_get_uint8 = Cfunction{UInt8, Tuple{Int32, Cint}}(library, :plc_tag_get_uint8)
-			global plc_tag_set_uint8 = Cfunction{Cint, Tuple{Int32, Cint, UInt8}}(library, :plc_tag_set_uint8)
-			global plc_tag_get_int8 = Cfunction{Int8, Tuple{Int32, Cint}}(library, :plc_tag_get_int8)
-			global plc_tag_set_int8 = Cfunction{Cint, Tuple{Int32, Cint, Int8}}(library, :plc_tag_set_int8)
-			global plc_tag_get_float64 = Cfunction{Cdouble, Tuple{Int32, Cint}}(library, :plc_tag_get_float64)
-			global plc_tag_set_float64 = Cfunction{Cint, Tuple{Int32, Cint, Cdouble}}(library, :plc_tag_set_float64)
-			global plc_tag_get_float32 = Cfunction{Cfloat, Tuple{Int32, Cint}}(library, :plc_tag_get_float32)
-			global plc_tag_set_float32 = Cfunction{Cint, Tuple{Int32, Cint, Cfloat}}(library, :plc_tag_set_float32)
+			path = plcpath(plc, tagName, sizeof(T), count)
+			
+			tag = PLCTag.C.plc_tag_create(path, 1000)  # 1000 is create time-out
+			tag <= 0 && error("Unable to create tag `$(tagName)` of type `$(T)` and count $(count): $(unsafe_string(PLCTag.C.plc_tag_decode_error(tag)))")
+			
+			result = new{T}(Ref{Int32}(tag), count)
+			finalizer(t -> PLCTag.C.plc_tag_destroy(t[]), result.tag)
+			return result
 		end
+	end
+	
+	
+	Base.length(ref::PLCRef) = ref.count
+	Base.size(ref::PLCRef) = (ref.count,)
+	Base.eltype(ref::PLCRef{T}) where {T} = T
+	Base.iterate(ref::PLCRef, state = 1) = state > length(ref) ? nothing : (ref[state], state+1)
+	
+	function Base.read(ref::PLCRef)
+		code = PLCTag.C.plc_tag_read(ref.tag[], 0)
+		code in (PLCTag.C.PLCTAG_STATUS_OK, PLCTag.C.PLCTAG_STATUS_PENDING) || error("Unable to read tag: $(unsafe_string(PLCTag.C.plc_tag_decode_error(code)))")
+	end
+	function Base.fetch(ref::PLCRef, ind::Int = 1)
+		timedwait(() -> PLCTag.C.plc_tag_status(ref.tag[]) == PLCTag.C.PLCTAG_STATUS_OK, 1.0, pollint = 0.01) === :ok || error("Failed to complete tag read: $(unsafe_string(PLCTag.C.plc_tag_decode_error(PLCTag.C.plc_tag_status(ref.tag[]))))")
+		return convert(eltype(ref), plcget(eltype(ref), ref.tag[], ind))
+	end
+	
+	function Base.write(ref::PLCRef, val, ind::Int = 1)
+		plcset(eltype(ref), ref.tag[], ind, convert(eltype(ref), val))
+		code = PLCTag.C.plc_tag_write(ref.tag[], 0)
+		code in (PLCTag.C.PLCTAG_STATUS_OK, PLCTag.C.PLCTAG_STATUS_PENDING) || error("Unable to write tag: $(unsafe_string(PLCTag.C.plc_tag_decode_error(code)))")
+	end
+	function Base.flush(ref::PLCRef)
+		timedwait(() -> PLCTag.C.plc_tag_status(ref.tag[]) == PLCTag.C.PLCTAG_STATUS_OK, 1.0, pollint = 0.01) === :ok || error("Failed to complete tag write: $(unsafe_string(PLCTag.C.plc_tag_decode_error(PLCTag.C.plc_tag_status(ref.tag[]))))")
+	end
+	
+	function Base.getindex(ref::PLCRef, ind::Int = 1)
+		read(ref)
+		return fetch(ref, ind)
+	end
+	
+	function Base.setindex!(ref::PLCRef, val, ind::Int = 1)
+		write(ref, val, ind)
+		flush(ref)
+	end
+	
+	
+	
+	plcpath(plc::PLC, tagName::String, size::Int, count::Int) = join(map(((k, v),) -> "$(k)=$(v)", (
+		:cpu => plc.cpu,
+		:protocol => plc.protocol,
+		:gateway => plc.gateway,
+		:path => plc.path,
+		:debug => plc.debug,
+		:elem_size => size,
+		:elem_count => count,
+		:name => tagName,
+	)), '&')
+	
+	
+	const PLCPrimitives = Union{
+		Bool,
+		Int8, UInt8, Int16, UInt16,
+		Int32, UInt32, Int64, UInt64,
+		Float32, Float64
+	}
+	
+	for T in (
+		:Bool,
+		:Int8, :UInt8, :Int16, :UInt16,
+		:Int32, :UInt32, :Int64, :UInt64,
+		:Float32, :Float64,
+	)
+		if T === :Bool
+			# NOTE: using Int8 (aka SINT on the PLC) to store a Bool
+			@eval plcget(::Type{Bool}, tag::Int32, ind::Int)            = plcget(Int8, tag, ind) != 0
+			@eval plcset(::Type{Bool}, tag::Int32, ind::Int, val::Bool) = plcset(Int8, tag, ind, convert(Int8, val))
+		else
+			@eval plcget(::Type{$(T)}, tag::Int32, ind::Int)            = PLCTag.C.$(Symbol("plc_tag_get_", lowercase(String(T))))(tag, ind-1)
+			@eval plcset(::Type{$(T)}, tag::Int32, ind::Int, val::$(T)) = PLCTag.C.$(Symbol("plc_tag_set_", lowercase(String(T))))(tag, ind-1, val)
+		end
+		
+		@eval Base.$(T)(plc::PLC, tagName::String) = PLCRef{$(T)}(plc, tagName)[]
+	end
+	
+	function Base.Vector{T}(plc::PLC, tagName::String, count::Int) where {T<:PLCPrimitives}
+		ref = PLCRef{T}(plc, tagName, count)
+		return T[ref[i] for i in 1:length(ref)]
+	end
+	
+	function Base.String(plc::PLC, tagName::String)
+		len = PLCRef{Int32}(plc, "$(tagName).LEN")[]
+		data = PLCRef{UInt8}(plc, "$(tagName).DATA", len)
+		return String(data)
 	end
 end
