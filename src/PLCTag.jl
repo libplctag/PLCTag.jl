@@ -74,12 +74,12 @@ module PLCTag
 		tag::Ref{Int32}
 		count::Int
 		
-		function PLCRef{T}(plc::PLC, tagName::String, count::Int = 1) where {T}
+		function PLCRef{T}(plc::PLC, tagName::String, count::Int = 1; timeout::Int = 1000) where {T}
 			isprimitivetype(T) || error("Unable to create a PLCRef for anything other than primitive types")
 			
 			path = plcpath(plc, tagName, sizeof(T), count)
 			
-			tag = PLCTag.LibPLCTag.plc_tag_create(path, 1000)  # 1000 is create time-out
+			tag = PLCTag.LibPLCTag.plc_tag_create(path, timeout)
 			tag <= 0 && error("Unable to create tag `$(tagName)` of type `$(T)` and count $(count): $(unsafe_string(PLCTag.LibPLCTag.plc_tag_decode_error(tag)))")
 			
 			result = new{T}(Ref{Int32}(tag), count)
