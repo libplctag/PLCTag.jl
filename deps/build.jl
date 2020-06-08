@@ -16,7 +16,11 @@ provides(
 
 srcdir = joinpath(BinDeps.srcdir(plctag), "libplctag-$(version)")
 blddir = joinpath(srcdir, "build")
-lib = joinpath(BinDeps.libdir(plctag), "libplctag.so")
+lib = if Sys.isapple() 
+	joinpath(BinDeps.libdir(plctag), "libplctag.dylib")
+else
+	joinpath(BinDeps.libdir(plctag), "libplctag.so")
+end
 provides(
 	BuildProcess,
 	@build_steps(begin
