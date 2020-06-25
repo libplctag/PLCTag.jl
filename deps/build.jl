@@ -2,14 +2,14 @@ using BinDeps, CBindingGen
 
 BinDeps.@setup
 
-version = "2.0.35"
+version = get(ENV, "LIBPLCTAG_VERSION",  "2.1.6")
 plctag = library_dependency("libplctag")
 
 rm(BinDeps.usrdir(plctag); force = true, recursive = true)
 
 provides(
 	Sources,
-	URI("https://github.com/kyle-github/libplctag/archive/v$(version).tar.gz"),
+	URI("https://github.com/libplctag/libplctag/archive/v$(version).tar.gz"),
 	plctag,
 	unpacked_dir = "libplctag-$(version)",
 )
@@ -61,4 +61,7 @@ open(joinpath(@__DIR__, "libplctag.jl"), "w+") do io
 end
 
 
+open(joinpath(@__DIR__, "ab_server.jl"), "w+") do io
+	println(io, "const AB_SERVER_BIN = $(repr(joinpath(blddir, "bin_dist", "ab_server")))")
+end
 
