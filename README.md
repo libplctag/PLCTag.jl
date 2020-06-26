@@ -6,7 +6,7 @@ Julia wrapper for [libplctag](https://github.com/libplctag/libplctag) to communi
 ## Install
 
 PLCTag.jl downloads and builds libplctag from a released tar file.
-You must have build-essentials and cmake installed or analogous packages build support packages for your OS.
+You must have build-essentials installed or analogous build support packages for your OS.
 If you wish to override the version downloaded and built, an environment variable is the means to do that:
 
 1. in Julia: `ENV["LIBPLCTAG_VERSION"] = "2.1.8"`
