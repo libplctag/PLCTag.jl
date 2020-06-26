@@ -1,69 +1,94 @@
 # PLCTag.jl
-Wraps https://github.com/kyle-github/libplctag
 
-# Install
+[![Linux & OSX](https://travis-ci.com/libplctag/PLCTag.jl.svg?branch=master)](https://travis-ci.com/libplctag/PLCTag.jl)
 
-You must have build-essentials and cmake installed.
+Julia wrapper for [libplctag](https://github.com/libplctag/libplctag) to communicate with PLC's.
 
-In Pkg mode, `add https://github.com/laurium-labs/PLCTag.jl`
 
-# Low-Level Usage
+## Install
+
+PLCTag.jl downloads and builds libplctag from a released tar file.
+You must have build-essentials installed or analogous build support packages for your OS.
+If you wish to override the version downloaded and built, an environment variable is the means to do that:
+
+1. in Julia: `ENV["LIBPLCTAG_VERSION"] = "2.1.8"`
+2. or Bash: `export LIBPLCTAG_VERSION='2.1.8'`
+
+The environment variable must be set before installing (`add PLCTag`) or building (`build PLCTag`) with the package manager.
+
+
+## Usage
+
+The libplctag C bindings that are generated with [CBinding.jl](https://github.com/analytech-solutions/CBinding.jl) are exported in the `LibPLCTag` module.
+Additional high-level facilities are provided by PLCTag.jl for a more Julian experience.
+
+
+### Low-Level Usage
+
+The following example uses the C bindings to read and write a 32-bit integer tag called `some_tag`.
 
 ```julia
 using PLCTag
 
-const TAG_PATH = "protocol=ab_eip&gateway=192.168.2.1&path=1,0&cpu=compactlogix&elem_size=4&elem_count=1&name=topTerm&debug=3"
+const TAG_PATH = "protocol=ab-eip&gateway=192.168.2.1&path=1,0&cpu=compactlogix&elem_size=4&elem_count=1&name=some_tag&debug=3"
 const DATA_TIMEOUT = 5000
 
 tag = LibPLCTag.plc_tag_create(TAG_PATH, DATA_TIMEOUT)
-tag <= 0 && error("ERROR $(LibPLCTag.plc_tag_decode_error(tag)): Could not create tag!")
+tag <= 0 && error("$(LibPLCTag.plc_tag_decode_error(tag)): Could not create tag!")
 
 code = LibPLCTag.plc_tag_status(tag)
-        
-code == LibPLCTag.PLCTAG_STATUS_OK || error("ERROR: Error setting up tag internal state. Got error code $(code): $(unsafe_string(LibPLCTag.plc_tag_decode_error(code)))")
+code == LibPLCTag.PLCTAG_STATUS_OK || error("Error setting up tag internal state. Got error code $(code): $(unsafe_string(LibPLCTag.plc_tag_decode_error(code)))")
 
 # read
 code = LibPLCTag.plc_tag_read(tag, DATA_TIMEOUT)
-code == LibPLCTag.PLCTAG_STATUS_OK || error("ERROR: Unable to read the data! Got error code $(code): $(unsafe_string(LibPLCTag.plc_tag_decode_error(code)))")
+code == LibPLCTag.PLCTAG_STATUS_OK || error("Unable to read the data! Got error code $(code): $(unsafe_string(LibPLCTag.plc_tag_decode_error(code)))")
 val = LibPLCTag.plc_tag_get_int32(tag, 0)
-@info "data= $(val)"
+@info val
 
 # write
-code = LibPLCTag.plc_tag_set_int32(tag, 0, 1)
-code == LibPLCTag.PLCTAG_STATUS_OK || error("ERROR: Unable to write the data! Got error code $(code): $(unsafe_string(LibPLCTag.plc_tag_decode_error(code)))")
+code = LibPLCTag.plc_tag_set_int32(tag, 0, 42)
+code == LibPLCTag.PLCTAG_STATUS_OK || error("Unable to write the data! Got error code $(code): $(unsafe_string(LibPLCTag.plc_tag_decode_error(code)))")
 
+code = LibPLCTag.plc_tag_write(tag, DATA_TIMEOUT)
+code == LibPLCTag.PLCTAG_STATUS_OK || error("Unable to write the data! Got error code $(code): $(unsafe_string(LibPLCTag.plc_tag_decode_error(code)))")
 
-code = LibPLCTag.plc_tag_write(tag, DATA_TIMEOUT)        
-code == LibPLCTag.PLCTAG_STATUS_OK || error("ERROR: Unable to write the data! Got error code $(code): $(unsafe_string(LibPLCTag.plc_tag_decode_error(code)))")
+LibPLCTag.plc_tag_destroy(tag)
 ```
 
-# High-Level Usage
+
+### High-Level Usage
+
+The high-level interface is much more pleasant to work with, and the example below is the equivalent to the low-level example above.
 
 ```julia
 using PLCTag
 
 const plc = PLC(
-	protocol = "ab_eip",
+	protocol = "ab-eip",
 	gateway  = "192.168.2.1",
 	path     = "1,0",
 	cpu      = "compactlogix",
-	debug    = 3,
+	debug    = 0,
 )
 const DATA_TIMEOUT = 5000
 
 
-tag = PLCRef{Int32}(plc, "topTerm"; timeout = DATA_TIMEOUT)
+tag = PLCRef{Int32}(plc, "some_tag"; timeout = DATA_TIMEOUT)
 
-# read
+# read & fetch
 read(tag)
 @info fetch(tag)
 # or
 @info tag[]
 
-# write
+# write & flush
 write(tag, 42)
 flush(tag)
 # or
 tag[] = 42
 
+# just for demonstration purposes, a tag's resources get cleaned
+# up when it's no longer referenced and garbage collection occurs
+tag = nothing
+GC.gc()
 ```
