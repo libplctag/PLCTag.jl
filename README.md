@@ -1,5 +1,7 @@
 # PLCTag.jl
 
+[![Linux & OSX](https://travis-ci.com/libplctag/PLCTag.jl.svg?branch=master)](https://travis-ci.com/libplctag/PLCTag.jl)
+
 Julia wrapper for [libplctag](https://github.com/libplctag/libplctag) to communicate with PLC's.
 
 
