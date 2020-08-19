@@ -15,6 +15,6 @@ Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 [compat]
 BinDeps = "^1.0"
 CBinding = "^0.9"
-CBindingGen = "^0.3"
+CBindingGen = "^0.3,^0.4"
 CMakeWrapper = "^0.2"
 julia = "^1.3"
