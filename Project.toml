@@ -1,7 +1,7 @@
 name = "PLCTag"
 uuid = "c147798f-b4fc-41d0-8ada-b04926728fb5"
 authors = ["Keith Rutkowski <keith@analytech-solutions.com>"]
-version = "0.1.0"
+version = "0.1.1"
 
 [deps]
 BinDeps = "9e28174c-4ba2-5203-b857-d8d62c4213ee"
