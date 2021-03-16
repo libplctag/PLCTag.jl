@@ -1,10 +1,9 @@
 using BinDeps
 using CMakeWrapper
-using CBindingGen
 
 BinDeps.@setup
 
-version = get(ENV, "LIBPLCTAG_VERSION",  "2.1.6")
+version = get(ENV, "LIBPLCTAG_VERSION",  "2.3.5")
 
 plctag = library_dependency("libplctag", aliases = ["plctag"])
 if Sys.iswindows()
@@ -56,17 +55,3 @@ end
 
 BinDeps.@install Dict(:plctag => :_plctag)
 
-incdir = Sys.iswindows() ? bindir : BinDeps.includedir(plctag)
-cvts = convert_header("libplctag.h", args = ["-I", incdir, "-fparse-all-comments"]) do cursor
-	header = CodeLocation(cursor).file
-	name   = string(cursor)
-	
-	# only wrap the libplctag headers
-	startswith(header, "$(incdir)/") || return false
-	
-	return true
-end
-
-open(joinpath(@__DIR__, "libplctag.jl"), "w+") do io
-	generate(io, lib => cvts)
-end
