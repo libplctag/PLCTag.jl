@@ -46,19 +46,19 @@ const TAGS = [
 		
 		vals = []
 		@testset "Low-level API" begin
-			@test unsafe_string(LibPLCTag.plc_tag_decode_error(LibPLCTag.PLCTAG_STATUS_OK)) == "PLCTAG_STATUS_OK"
+			@test unsafe_string(plc_tag_decode_error(c"PLCTAG_STATUS_OK")) == "PLCTAG_STATUS_OK"
 			
 			tags = map(TAGS) do (t, c)
 				(x, y) = TAG_TYPES[t]
 				push!(vals, rand(rng, x, c))
 				
-				tag = LibPLCTag.plc_tag_create("protocol=ab-eip&gateway=$(ip)&path=1,0&cpu=compactlogix&elem_size=$(sizeof(x))&elem_count=$(c)&name=tag$(t)$(c)&debug=0", 1000)
+				tag = plc_tag_create("protocol=ab-eip&gateway=$(ip)&path=1,0&cpu=compactlogix&elem_size=$(sizeof(x))&elem_count=$(c)&name=tag$(t)$(c)&debug=0", 1000)
 				@test tag > 0
-				@test LibPLCTag.plc_tag_status(tag) == LibPLCTag.PLCTAG_STATUS_OK
-				@test LibPLCTag.plc_tag_get_size(tag) == sizeof(x)*c
-				@test LibPLCTag.plc_tag_get_int_attribute(tag, "size", -1) == sizeof(x)*c
-				@test LibPLCTag.plc_tag_get_int_attribute(tag, "elem_size", -1) == sizeof(x)
-				@test LibPLCTag.plc_tag_get_int_attribute(tag, "elem_count", -1) == c
+				@test plc_tag_status(tag) == c"PLCTAG_STATUS_OK"
+				@test plc_tag_get_size(tag) == sizeof(x)*c
+				@test plc_tag_get_int_attribute(tag, "size", -1) == sizeof(x)*c
+				@test plc_tag_get_int_attribute(tag, "elem_size", -1) == sizeof(x)
+				@test plc_tag_get_int_attribute(tag, "elem_count", -1) == c
 				return (tag, c, x, y)
 			end
 			
@@ -66,13 +66,13 @@ const TAGS = [
 				for (ind, (tag, c, x, y)) in enumerate(tags)
 					vals[ind] = rand(rng, x, c)
 					for i in eachindex(vals[ind])
-						@test getproperty(LibPLCTag, Symbol(:plc_tag_set_, y))(tag, i-1, vals[ind][i]) == LibPLCTag.PLCTAG_STATUS_OK
+						@test getproperty(PLCTag, Symbol(:plc_tag_set_, y))(tag, i-1, vals[ind][i]) == c"PLCTAG_STATUS_OK"
 					end
-					@test LibPLCTag.plc_tag_write(tag, 1000) == LibPLCTag.PLCTAG_STATUS_OK
+					@test plc_tag_write(tag, 1000) == c"PLCTAG_STATUS_OK"
 					
-					@test LibPLCTag.plc_tag_read(tag, 1000) == LibPLCTag.PLCTAG_STATUS_OK
+					@test plc_tag_read(tag, 1000) == c"PLCTAG_STATUS_OK"
 					for i in eachindex(vals[ind])
-						@test getproperty(LibPLCTag, Symbol(:plc_tag_get_, y))(tag, i-1) == vals[ind][i]
+						@test getproperty(PLCTag, Symbol(:plc_tag_get_, y))(tag, i-1) == vals[ind][i]
 					end
 				end
 			end
@@ -81,32 +81,32 @@ const TAGS = [
 				for (ind, (tag, c, x, y)) in enumerate(tags)
 					vals[ind] = rand(rng, x, c)
 					for i in eachindex(vals[ind])
-						@test getproperty(LibPLCTag, Symbol(:plc_tag_set_, y))(tag, i-1, vals[ind][i]) == LibPLCTag.PLCTAG_STATUS_OK
+						@test getproperty(PLCTag, Symbol(:plc_tag_set_, y))(tag, i-1, vals[ind][i]) == c"PLCTAG_STATUS_OK"
 					end
-					@test LibPLCTag.plc_tag_write(tag, 0) in (LibPLCTag.PLCTAG_STATUS_OK, LibPLCTag.PLCTAG_STATUS_PENDING)
-					@test timedwait(() -> LibPLCTag.plc_tag_status(tag) == LibPLCTag.PLCTAG_STATUS_OK, 1.0, pollint = 0.001) === :ok
+					@test plc_tag_write(tag, 0) in (c"PLCTAG_STATUS_OK", c"PLCTAG_STATUS_PENDING")
+					@test timedwait(() -> plc_tag_status(tag) == c"PLCTAG_STATUS_OK", 1.0, pollint = 0.001) === :ok
 				end
 				
 				# WARNING: truly async is unsupported by test server?
 				# for (ind, (tag, c, x, y)) in enumerate(tags)
-				# 	@test timedwait(() -> LibPLCTag.plc_tag_status(tag) == LibPLCTag.PLCTAG_STATUS_OK, 1.0, pollint = 0.001) === :ok
+				# 	@test timedwait(() -> plc_tag_status(tag) == c"PLCTAG_STATUS_OK", 1.0, pollint = 0.001) === :ok
 				# end
 				
 				# for (ind, (tag, c, x, y)) in enumerate(tags)
-				# 	@test LibPLCTag.plc_tag_read(tag, 0) in (LibPLCTag.PLCTAG_STATUS_OK, LibPLCTag.PLCTAG_STATUS_PENDING)
+				# 	@test plc_tag_read(tag, 0) in (c"PLCTAG_STATUS_OK", c"PLCTAG_STATUS_PENDING")
 				# end
 				
 				for (ind, (tag, c, x, y)) in enumerate(tags)
-					@test LibPLCTag.plc_tag_read(tag, 0) in (LibPLCTag.PLCTAG_STATUS_OK, LibPLCTag.PLCTAG_STATUS_PENDING)
-					@test timedwait(() -> LibPLCTag.plc_tag_status(tag) == LibPLCTag.PLCTAG_STATUS_OK, 1.0, pollint = 0.001) === :ok
+					@test plc_tag_read(tag, 0) in (c"PLCTAG_STATUS_OK", c"PLCTAG_STATUS_PENDING")
+					@test timedwait(() -> plc_tag_status(tag) == c"PLCTAG_STATUS_OK", 1.0, pollint = 0.001) === :ok
 					for i in eachindex(vals[ind])
-						@test getproperty(LibPLCTag, Symbol(:plc_tag_get_, y))(tag, i-1) == vals[ind][i]
+						@test getproperty(PLCTag, Symbol(:plc_tag_get_, y))(tag, i-1) == vals[ind][i]
 					end
 				end
 			end
 			
 			for (tag, c, x, y) in tags
-				tag > 0 && @test LibPLCTag.plc_tag_destroy(tag) == LibPLCTag.PLCTAG_STATUS_OK
+				tag > 0 && @test plc_tag_destroy(tag) == c"PLCTAG_STATUS_OK"
 			end
 		end
 		

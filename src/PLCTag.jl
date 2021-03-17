@@ -1,21 +1,33 @@
 module PLCTag
-	baremodule LibPLCTag
-		using CBinding: 𝐣𝐥
+	module libplctag
+		using CBinding
 		
-		const int8_t  = 𝐣𝐥.Int8
-		const int16_t = 𝐣𝐥.Int16
-		const int32_t = 𝐣𝐥.Int32
-		const int64_t = 𝐣𝐥.Int64
-		const uint8_t  = 𝐣𝐥.UInt8
-		const uint16_t = 𝐣𝐥.UInt16
-		const uint32_t = 𝐣𝐥.UInt32
-		const uint64_t = 𝐣𝐥.UInt64
+		let
+			incdir = joinpath(dirname(@__DIR__), "deps/usr/include")
+			libdir = joinpath(dirname(@__DIR__), "deps/usr/lib")
+			
+			c`-I$(incdir) -fparse-all-comments -L$(libdir) -lplctag`
+		end
 		
-		𝐣𝐥.Base.include(𝐣𝐥.@__MODULE__, 𝐣𝐥.joinpath(𝐣𝐥.dirname(𝐣𝐥.@__DIR__), "deps", "libplctag.jl"))
+		const c"int8_t"  = Int8
+		const c"int16_t" = Int16
+		const c"int32_t" = Int32
+		const c"int64_t" = Int64
+		const c"uint8_t"  = UInt8
+		const c"uint16_t" = UInt16
+		const c"uint32_t" = UInt32
+		const c"uint64_t" = UInt64
+		
+		c"""
+			#include <libplctag.h>
+		"""ji
 	end
 	
 	
-	export LibPLCTag, PLC, PLCRef, PLCBinding
+	using CBinding
+	using .libplctag
+	
+	export PLC, PLCRef, PLCBinding
 	
 	
 	Base.@kwdef struct PLC
@@ -36,11 +48,11 @@ module PLCTag
 			
 			path = plcpath(plc, tagName, sizeof(T), count)
 			
-			tag = LibPLCTag.plc_tag_create(path, timeout)
-			tag <= 0 && error("Unable to create tag `$(tagName)` of type `$(T)` and count $(count): $(unsafe_string(LibPLCTag.plc_tag_decode_error(tag)))")
+			tag = plc_tag_create(path, timeout)
+			tag <= 0 && error("Unable to create tag `$(tagName)` of type `$(T)` and count $(count): $(unsafe_string(plc_tag_decode_error(tag)))")
 			
 			result = new{T}(Ref{Int32}(tag), count)
-			finalizer(t -> LibPLCTag.plc_tag_destroy(t[]), result.tag)
+			finalizer(t -> plc_tag_destroy(t[]), result.tag)
 			return result
 		end
 	end
@@ -52,21 +64,21 @@ module PLCTag
 	Base.iterate(ref::PLCRef, state = 1) = state > length(ref) ? nothing : (ref[state], state+1)
 	
 	function Base.read(ref::PLCRef)
-		code = LibPLCTag.plc_tag_read(ref.tag[], 0)
-		code in (LibPLCTag.PLCTAG_STATUS_OK, LibPLCTag.PLCTAG_STATUS_PENDING) || error("Unable to read tag: $(unsafe_string(LibPLCTag.plc_tag_decode_error(code)))")
+		code = plc_tag_read(ref.tag[], 0)
+		code in (c"PLCTAG_STATUS_OK", c"PLCTAG_STATUS_PENDING") || error("Unable to read tag: $(unsafe_string(plc_tag_decode_error(code)))")
 	end
 	function Base.fetch(ref::PLCRef, ind::Int = 1)
-		timedwait(() -> LibPLCTag.plc_tag_status(ref.tag[]) == LibPLCTag.PLCTAG_STATUS_OK, 1.0, pollint = 0.001) === :ok || error("Failed to complete tag read: $(unsafe_string(LibPLCTag.plc_tag_decode_error(LibPLCTag.plc_tag_status(ref.tag[]))))")
+		timedwait(() -> plc_tag_status(ref.tag[]) == c"PLCTAG_STATUS_OK", 1.0, pollint = 0.001) === :ok || error("Failed to complete tag read: $(unsafe_string(plc_tag_decode_error(plc_tag_status(ref.tag[]))))")
 		return convert(eltype(ref), plcget(eltype(ref), ref.tag[], ind))
 	end
 	
 	function Base.write(ref::PLCRef, val, ind::Int = 1)
 		plcset(eltype(ref), ref.tag[], ind, convert(eltype(ref), val))
-		code = LibPLCTag.plc_tag_write(ref.tag[], 0)
-		code in (LibPLCTag.PLCTAG_STATUS_OK, LibPLCTag.PLCTAG_STATUS_PENDING) || error("Unable to write tag: $(unsafe_string(LibPLCTag.plc_tag_decode_error(code)))")
+		code = plc_tag_write(ref.tag[], 0)
+		code in (c"PLCTAG_STATUS_OK", c"PLCTAG_STATUS_PENDING") || error("Unable to write tag: $(unsafe_string(plc_tag_decode_error(code)))")
 	end
 	function Base.flush(ref::PLCRef)
-		timedwait(() -> LibPLCTag.plc_tag_status(ref.tag[]) == LibPLCTag.PLCTAG_STATUS_OK, 1.0, pollint = 0.001) === :ok || error("Failed to complete tag write: $(unsafe_string(LibPLCTag.plc_tag_decode_error(LibPLCTag.plc_tag_status(ref.tag[]))))")
+		timedwait(() -> plc_tag_status(ref.tag[]) == c"PLCTAG_STATUS_OK", 1.0, pollint = 0.001) === :ok || error("Failed to complete tag write: $(unsafe_string(plc_tag_decode_error(plc_tag_status(ref.tag[]))))")
 	end
 	
 	function Base.getindex(ref::PLCRef, ind::Int = 1)
@@ -111,8 +123,8 @@ module PLCTag
 			@eval plcget(::Type{Bool}, tag::Int32, ind::Int)            = plcget(Int8, tag, ind) != 0
 			@eval plcset(::Type{Bool}, tag::Int32, ind::Int, val::Bool) = plcset(Int8, tag, ind, convert(Int8, val))
 		else
-			@eval plcget(::Type{$(T)}, tag::Int32, ind::Int)            = LibPLCTag.$(Symbol("plc_tag_get_", lowercase(String(T))))(tag, ind-1)
-			@eval plcset(::Type{$(T)}, tag::Int32, ind::Int, val::$(T)) = LibPLCTag.$(Symbol("plc_tag_set_", lowercase(String(T))))(tag, ind-1, val)
+			@eval plcget(::Type{$(T)}, tag::Int32, ind::Int)            = $(Symbol("plc_tag_get_", lowercase(String(T))))(tag, ind-1)
+			@eval plcset(::Type{$(T)}, tag::Int32, ind::Int, val::$(T)) = $(Symbol("plc_tag_set_", lowercase(String(T))))(tag, ind-1, val)
 		end
 		
 		@eval Base.$(T)(plc::PLC, tagName::String) = PLCRef{$(T)}(plc, tagName)[]

@@ -19,7 +19,7 @@ The environment variable must be set before installing (`add PLCTag`) or buildin
 
 ## Usage
 
-The libplctag C bindings that are generated with [CBinding.jl](https://github.com/analytech-solutions/CBinding.jl) are exported in the `LibPLCTag` module.
+The libplctag C bindings that are generated with [CBinding.jl](https://github.com/analytech-solutions/CBinding.jl) are exported in the `libplctag` module.
 Additional high-level facilities are provided by PLCTag.jl for a more Julian experience.
 
 
@@ -28,31 +28,33 @@ Additional high-level facilities are provided by PLCTag.jl for a more Julian exp
 The following example uses the C bindings to read and write a 32-bit integer tag called `some_tag`.
 
 ```julia
+using CBinding
 using PLCTag
+using PLCTag.libplctag
 
 const TAG_PATH = "protocol=ab-eip&gateway=192.168.2.1&path=1,0&cpu=compactlogix&elem_size=4&elem_count=1&name=some_tag&debug=3"
 const DATA_TIMEOUT = 5000
 
-tag = LibPLCTag.plc_tag_create(TAG_PATH, DATA_TIMEOUT)
-tag <= 0 && error("$(LibPLCTag.plc_tag_decode_error(tag)): Could not create tag!")
+tag = plc_tag_create(TAG_PATH, DATA_TIMEOUT)
+tag <= 0 && error("$(plc_tag_decode_error(tag)): Could not create tag!")
 
-code = LibPLCTag.plc_tag_status(tag)
-code == LibPLCTag.PLCTAG_STATUS_OK || error("Error setting up tag internal state. Got error code $(code): $(unsafe_string(LibPLCTag.plc_tag_decode_error(code)))")
+code = plc_tag_status(tag)
+code == c"PLCTAG_STATUS_OK" || error("Error setting up tag internal state. Got error code $(code): $(unsafe_string(plc_tag_decode_error(code)))")
 
 # read
-code = LibPLCTag.plc_tag_read(tag, DATA_TIMEOUT)
-code == LibPLCTag.PLCTAG_STATUS_OK || error("Unable to read the data! Got error code $(code): $(unsafe_string(LibPLCTag.plc_tag_decode_error(code)))")
-val = LibPLCTag.plc_tag_get_int32(tag, 0)
+code = plc_tag_read(tag, DATA_TIMEOUT)
+code == c"PLCTAG_STATUS_OK" || error("Unable to read the data! Got error code $(code): $(unsafe_string(plc_tag_decode_error(code)))")
+val = plc_tag_get_int32(tag, 0)
 @info val
 
 # write
-code = LibPLCTag.plc_tag_set_int32(tag, 0, 42)
-code == LibPLCTag.PLCTAG_STATUS_OK || error("Unable to write the data! Got error code $(code): $(unsafe_string(LibPLCTag.plc_tag_decode_error(code)))")
+code = plc_tag_set_int32(tag, 0, 42)
+code == c"PLCTAG_STATUS_OK" || error("Unable to write the data! Got error code $(code): $(unsafe_string(plc_tag_decode_error(code)))")
 
-code = LibPLCTag.plc_tag_write(tag, DATA_TIMEOUT)
-code == LibPLCTag.PLCTAG_STATUS_OK || error("Unable to write the data! Got error code $(code): $(unsafe_string(LibPLCTag.plc_tag_decode_error(code)))")
+code = plc_tag_write(tag, DATA_TIMEOUT)
+code == c"PLCTAG_STATUS_OK" || error("Unable to write the data! Got error code $(code): $(unsafe_string(plc_tag_decode_error(code)))")
 
-LibPLCTag.plc_tag_destroy(tag)
+plc_tag_destroy(tag)
 ```
 
 
